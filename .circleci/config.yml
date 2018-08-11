@@ -1,0 +1,38 @@
+version: 2
+jobs:
+  build:
+    working_directory: /go/src/github.com/danielcopaciu/chat
+    docker:
+    - image: circleci/golang:1
+    steps:
+      - checkout
+      - run: make install
+      - run: make lint test
+
+  deploy:
+    working_directory: /go/src/github.com/danielcopaciu/chat
+    docker:
+    - image: circleci/golang:1
+    steps:
+      - checkout
+      - run: make install
+      - run: make lint test
+      - setup_remote_docker:
+          version: 17.06.0-ce
+      - run: make ci-docker-build
+      - run: make ci-deploy
+
+workflows:
+  version: 2
+  development:
+    jobs:
+      - build:
+          filters:
+            branches:
+              ignore: master
+  deployment:
+    jobs:
+      - deploy:
+          filters:
+            branches:
+              only: master
