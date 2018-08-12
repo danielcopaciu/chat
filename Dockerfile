@@ -18,8 +18,9 @@ FROM alpine:3.8
 ARG SERVICE
 
 ENV APP=${SERVICE}
+ENV ADDRESS=${ADDRESS}
 
 RUN apk add --no-cache ca-certificates openssl && mkdir /app
 COPY --from=build /${SERVICE} /app/${SERVICE}
 
-ENTRYPOINT /app/${APP}
+ENTRYPOINT /app/${APP} server
