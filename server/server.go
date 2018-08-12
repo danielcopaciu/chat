@@ -11,7 +11,7 @@ import (
 
 	"google.golang.org/grpc/status"
 
-	"github.com/daniel.copaciu/chat/generated/chat"
+	"github.com/danielcopaciu/chat/generated/chat"
 	"google.golang.org/grpc/metadata"
 )
 

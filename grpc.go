@@ -3,7 +3,7 @@ package main
 import (
 	"net"
 
-	"github.com/daniel.copaciu/chat/generated/chat"
+	"github.com/danielcopaciu/chat/generated/chat"
 
 	"github.com/cloudflare/cfssl/log"
 	"google.golang.org/grpc"

@@ -9,7 +9,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/daniel.copaciu/chat/generated/chat"
+	"github.com/danielcopaciu/chat/generated/chat"
 
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"

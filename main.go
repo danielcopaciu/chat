@@ -9,9 +9,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/daniel.copaciu/chat/client"
+	"github.com/danielcopaciu/chat/client"
 
-	"github.com/daniel.copaciu/chat/server"
+	"github.com/danielcopaciu/chat/server"
 
 	cli "github.com/jawher/mow.cli"
 )
