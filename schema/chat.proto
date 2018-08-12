@@ -5,7 +5,7 @@ package chat;
 service Chat {
   rpc Login(LoginRequest) returns (LoginResponse) {}
   rpc Logout(LogoutRequest) returns (LogoutResponse) {}
-  rpc Message(stream MeesageRequest) returns (stream MeesageResponse) {}
+  rpc Join(stream Message) returns (stream Message) {}
 }
 
 message LoginRequest { string username = 1; }
@@ -16,6 +16,7 @@ message LogoutRequest { string username = 1; }
 
 message LogoutResponse {}
 
-message MeesageRequest { string message = 1; }
-
-message MeesageResponse {}
+message Message {
+  string sender = 1;
+  string value = 2;
+}
