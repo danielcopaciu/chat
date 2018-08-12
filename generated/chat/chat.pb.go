@@ -2,18 +2,17 @@
 // source: chat.proto
 
 /*
-Package chat is a generated protocol buffer package.
+	Package chat is a generated protocol buffer package.
 
-It is generated from these files:
-	chat.proto
+	It is generated from these files:
+		chat.proto
 
-It has these top-level messages:
-	LoginRequest
-	LoginResponse
-	LogoutRequest
-	LogoutResponse
-	MeesageRequest
-	MeesageResponse
+	It has these top-level messages:
+		LoginRequest
+		LoginResponse
+		LogoutRequest
+		LogoutResponse
+		Message
 */
 package chat
 
@@ -87,37 +86,36 @@ func (m *LogoutResponse) String() string            { return proto.CompactTextSt
 func (*LogoutResponse) ProtoMessage()               {}
 func (*LogoutResponse) Descriptor() ([]byte, []int) { return fileDescriptorChat, []int{3} }
 
-type MeesageRequest struct {
-	Message string `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
+type Message struct {
+	Sender string `protobuf:"bytes,1,opt,name=sender,proto3" json:"sender,omitempty"`
+	Value  string `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
 }
 
-func (m *MeesageRequest) Reset()                    { *m = MeesageRequest{} }
-func (m *MeesageRequest) String() string            { return proto.CompactTextString(m) }
-func (*MeesageRequest) ProtoMessage()               {}
-func (*MeesageRequest) Descriptor() ([]byte, []int) { return fileDescriptorChat, []int{4} }
+func (m *Message) Reset()                    { *m = Message{} }
+func (m *Message) String() string            { return proto.CompactTextString(m) }
+func (*Message) ProtoMessage()               {}
+func (*Message) Descriptor() ([]byte, []int) { return fileDescriptorChat, []int{4} }
 
-func (m *MeesageRequest) GetMessage() string {
+func (m *Message) GetSender() string {
 	if m != nil {
-		return m.Message
+		return m.Sender
 	}
 	return ""
 }
 
-type MeesageResponse struct {
+func (m *Message) GetValue() string {
+	if m != nil {
+		return m.Value
+	}
+	return ""
 }
-
-func (m *MeesageResponse) Reset()                    { *m = MeesageResponse{} }
-func (m *MeesageResponse) String() string            { return proto.CompactTextString(m) }
-func (*MeesageResponse) ProtoMessage()               {}
-func (*MeesageResponse) Descriptor() ([]byte, []int) { return fileDescriptorChat, []int{5} }
 
 func init() {
 	proto.RegisterType((*LoginRequest)(nil), "chat.LoginRequest")
 	proto.RegisterType((*LoginResponse)(nil), "chat.LoginResponse")
 	proto.RegisterType((*LogoutRequest)(nil), "chat.LogoutRequest")
 	proto.RegisterType((*LogoutResponse)(nil), "chat.LogoutResponse")
-	proto.RegisterType((*MeesageRequest)(nil), "chat.MeesageRequest")
-	proto.RegisterType((*MeesageResponse)(nil), "chat.MeesageResponse")
+	proto.RegisterType((*Message)(nil), "chat.Message")
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -133,7 +131,7 @@ const _ = grpc.SupportPackageIsVersion4
 type ChatClient interface {
 	Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginResponse, error)
 	Logout(ctx context.Context, in *LogoutRequest, opts ...grpc.CallOption) (*LogoutResponse, error)
-	Message(ctx context.Context, opts ...grpc.CallOption) (Chat_MessageClient, error)
+	Join(ctx context.Context, opts ...grpc.CallOption) (Chat_JoinClient, error)
 }
 
 type chatClient struct {
@@ -162,31 +160,31 @@ func (c *chatClient) Logout(ctx context.Context, in *LogoutRequest, opts ...grpc
 	return out, nil
 }
 
-func (c *chatClient) Message(ctx context.Context, opts ...grpc.CallOption) (Chat_MessageClient, error) {
-	stream, err := grpc.NewClientStream(ctx, &_Chat_serviceDesc.Streams[0], c.cc, "/chat.Chat/Message", opts...)
+func (c *chatClient) Join(ctx context.Context, opts ...grpc.CallOption) (Chat_JoinClient, error) {
+	stream, err := grpc.NewClientStream(ctx, &_Chat_serviceDesc.Streams[0], c.cc, "/chat.Chat/Join", opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &chatMessageClient{stream}
+	x := &chatJoinClient{stream}
 	return x, nil
 }
 
-type Chat_MessageClient interface {
-	Send(*MeesageRequest) error
-	Recv() (*MeesageResponse, error)
+type Chat_JoinClient interface {
+	Send(*Message) error
+	Recv() (*Message, error)
 	grpc.ClientStream
 }
 
-type chatMessageClient struct {
+type chatJoinClient struct {
 	grpc.ClientStream
 }
 
-func (x *chatMessageClient) Send(m *MeesageRequest) error {
+func (x *chatJoinClient) Send(m *Message) error {
 	return x.ClientStream.SendMsg(m)
 }
 
-func (x *chatMessageClient) Recv() (*MeesageResponse, error) {
-	m := new(MeesageResponse)
+func (x *chatJoinClient) Recv() (*Message, error) {
+	m := new(Message)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -198,7 +196,7 @@ func (x *chatMessageClient) Recv() (*MeesageResponse, error) {
 type ChatServer interface {
 	Login(context.Context, *LoginRequest) (*LoginResponse, error)
 	Logout(context.Context, *LogoutRequest) (*LogoutResponse, error)
-	Message(Chat_MessageServer) error
+	Join(Chat_JoinServer) error
 }
 
 func RegisterChatServer(s *grpc.Server, srv ChatServer) {
@@ -241,26 +239,26 @@ func _Chat_Logout_Handler(srv interface{}, ctx context.Context, dec func(interfa
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Chat_Message_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(ChatServer).Message(&chatMessageServer{stream})
+func _Chat_Join_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(ChatServer).Join(&chatJoinServer{stream})
 }
 
-type Chat_MessageServer interface {
-	Send(*MeesageResponse) error
-	Recv() (*MeesageRequest, error)
+type Chat_JoinServer interface {
+	Send(*Message) error
+	Recv() (*Message, error)
 	grpc.ServerStream
 }
 
-type chatMessageServer struct {
+type chatJoinServer struct {
 	grpc.ServerStream
 }
 
-func (x *chatMessageServer) Send(m *MeesageResponse) error {
+func (x *chatJoinServer) Send(m *Message) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-func (x *chatMessageServer) Recv() (*MeesageRequest, error) {
-	m := new(MeesageRequest)
+func (x *chatJoinServer) Recv() (*Message, error) {
+	m := new(Message)
 	if err := x.ServerStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -282,8 +280,8 @@ var _Chat_serviceDesc = grpc.ServiceDesc{
 	},
 	Streams: []grpc.StreamDesc{
 		{
-			StreamName:    "Message",
-			Handler:       _Chat_Message_Handler,
+			StreamName:    "Join",
+			Handler:       _Chat_Join_Handler,
 			ServerStreams: true,
 			ClientStreams: true,
 		},
@@ -375,7 +373,7 @@ func (m *LogoutResponse) MarshalTo(dAtA []byte) (int, error) {
 	return i, nil
 }
 
-func (m *MeesageRequest) Marshal() (dAtA []byte, err error) {
+func (m *Message) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalTo(dAtA)
@@ -385,35 +383,23 @@ func (m *MeesageRequest) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *MeesageRequest) MarshalTo(dAtA []byte) (int, error) {
+func (m *Message) MarshalTo(dAtA []byte) (int, error) {
 	var i int
 	_ = i
 	var l int
 	_ = l
-	if len(m.Message) > 0 {
+	if len(m.Sender) > 0 {
 		dAtA[i] = 0xa
 		i++
-		i = encodeVarintChat(dAtA, i, uint64(len(m.Message)))
-		i += copy(dAtA[i:], m.Message)
+		i = encodeVarintChat(dAtA, i, uint64(len(m.Sender)))
+		i += copy(dAtA[i:], m.Sender)
 	}
-	return i, nil
-}
-
-func (m *MeesageResponse) Marshal() (dAtA []byte, err error) {
-	size := m.Size()
-	dAtA = make([]byte, size)
-	n, err := m.MarshalTo(dAtA)
-	if err != nil {
-		return nil, err
+	if len(m.Value) > 0 {
+		dAtA[i] = 0x12
+		i++
+		i = encodeVarintChat(dAtA, i, uint64(len(m.Value)))
+		i += copy(dAtA[i:], m.Value)
 	}
-	return dAtA[:n], nil
-}
-
-func (m *MeesageResponse) MarshalTo(dAtA []byte) (int, error) {
-	var i int
-	_ = i
-	var l int
-	_ = l
 	return i, nil
 }
 
@@ -458,19 +444,17 @@ func (m *LogoutResponse) Size() (n int) {
 	return n
 }
 
-func (m *MeesageRequest) Size() (n int) {
+func (m *Message) Size() (n int) {
 	var l int
 	_ = l
-	l = len(m.Message)
+	l = len(m.Sender)
 	if l > 0 {
 		n += 1 + l + sovChat(uint64(l))
 	}
-	return n
-}
-
-func (m *MeesageResponse) Size() (n int) {
-	var l int
-	_ = l
+	l = len(m.Value)
+	if l > 0 {
+		n += 1 + l + sovChat(uint64(l))
+	}
 	return n
 }
 
@@ -745,7 +729,7 @@ func (m *LogoutResponse) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *MeesageRequest) Unmarshal(dAtA []byte) error {
+func (m *Message) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -768,15 +752,15 @@ func (m *MeesageRequest) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: MeesageRequest: wiretype end group for non-group")
+			return fmt.Errorf("proto: Message: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MeesageRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: Message: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Message", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field Sender", wireType)
 			}
 			var stringLen uint64
 			for shift := uint(0); ; shift += 7 {
@@ -801,58 +785,37 @@ func (m *MeesageRequest) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Message = string(dAtA[iNdEx:postIndex])
+			m.Sender = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		default:
-			iNdEx = preIndex
-			skippy, err := skipChat(dAtA[iNdEx:])
-			if err != nil {
-				return err
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Value", wireType)
 			}
-			if skippy < 0 {
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowChat
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
 				return ErrInvalidLengthChat
 			}
-			if (iNdEx + skippy) > l {
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			iNdEx += skippy
-		}
-	}
-
-	if iNdEx > l {
-		return io.ErrUnexpectedEOF
-	}
-	return nil
-}
-func (m *MeesageResponse) Unmarshal(dAtA []byte) error {
-	l := len(dAtA)
-	iNdEx := 0
-	for iNdEx < l {
-		preIndex := iNdEx
-		var wire uint64
-		for shift := uint(0); ; shift += 7 {
-			if shift >= 64 {
-				return ErrIntOverflowChat
-			}
-			if iNdEx >= l {
-				return io.ErrUnexpectedEOF
-			}
-			b := dAtA[iNdEx]
-			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
-			if b < 0x80 {
-				break
-			}
-		}
-		fieldNum := int32(wire >> 3)
-		wireType := int(wire & 0x7)
-		if wireType == 4 {
-			return fmt.Errorf("proto: MeesageResponse: wiretype end group for non-group")
-		}
-		if fieldNum <= 0 {
-			return fmt.Errorf("proto: MeesageResponse: illegal tag %d (wire type %d)", fieldNum, wire)
-		}
-		switch fieldNum {
+			m.Value = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipChat(dAtA[iNdEx:])
@@ -982,20 +945,20 @@ var (
 func init() { proto.RegisterFile("chat.proto", fileDescriptorChat) }
 
 var fileDescriptorChat = []byte{
-	// 226 bytes of a gzipped FileDescriptorProto
+	// 233 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0x4a, 0xce, 0x48, 0x2c,
 	0xd1, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x01, 0xb1, 0x95, 0xb4, 0xb8, 0x78, 0x7c, 0xf2,
 	0xd3, 0x33, 0xf3, 0x82, 0x52, 0x0b, 0x4b, 0x53, 0x8b, 0x4b, 0x84, 0xa4, 0xb8, 0x38, 0x4a, 0x8b,
 	0x53, 0x8b, 0xf2, 0x12, 0x73, 0x53, 0x25, 0x18, 0x15, 0x18, 0x35, 0x38, 0x83, 0xe0, 0x7c, 0x25,
 	0x7e, 0x2e, 0x5e, 0xa8, 0xda, 0xe2, 0x82, 0xfc, 0xbc, 0xe2, 0x54, 0x25, 0x6d, 0xb0, 0x40, 0x7e,
-	0x69, 0x09, 0x31, 0xba, 0x05, 0xb8, 0xf8, 0x60, 0x8a, 0xa1, 0xda, 0xb5, 0xb8, 0xf8, 0x7c, 0x53,
-	0x53, 0x8b, 0x13, 0xd3, 0x53, 0x61, 0xfa, 0x25, 0xb8, 0xd8, 0x73, 0x53, 0x8b, 0x41, 0x22, 0x50,
-	0xed, 0x30, 0xae, 0x92, 0x20, 0x17, 0x3f, 0x5c, 0x2d, 0x44, 0xbb, 0xd1, 0x7a, 0x46, 0x2e, 0x16,
-	0xe7, 0x8c, 0xc4, 0x12, 0x21, 0x23, 0x2e, 0x56, 0xb0, 0xbb, 0x84, 0x84, 0xf4, 0xc0, 0xfe, 0x43,
-	0xf6, 0x90, 0x94, 0x30, 0x8a, 0x18, 0xd4, 0x66, 0x06, 0x21, 0x53, 0x2e, 0x36, 0x88, 0x6b, 0x84,
-	0x10, 0x0a, 0x10, 0x1e, 0x91, 0x12, 0x41, 0x15, 0x84, 0x6b, 0xb3, 0xe1, 0x62, 0xf7, 0x85, 0xb8,
-	0x48, 0x08, 0xaa, 0x04, 0xd5, 0x07, 0x52, 0xa2, 0x68, 0xa2, 0x30, 0x9d, 0x1a, 0x8c, 0x06, 0x8c,
-	0x4e, 0x3c, 0x27, 0x1e, 0xc9, 0x31, 0x5e, 0x78, 0x24, 0xc7, 0xf8, 0xe0, 0x91, 0x1c, 0x63, 0x12,
-	0x1b, 0x38, 0x1e, 0x8c, 0x01, 0x01, 0x00, 0x00, 0xff, 0xff, 0x65, 0xee, 0x4a, 0x27, 0x95, 0x01,
-	0x00, 0x00,
+	0x69, 0x09, 0x31, 0xba, 0x05, 0xb8, 0xf8, 0x60, 0x8a, 0xa1, 0xda, 0xcd, 0xb9, 0xd8, 0x7d, 0x53,
+	0x8b, 0x8b, 0x13, 0xd3, 0x53, 0x85, 0xc4, 0xb8, 0xd8, 0x8a, 0x53, 0xf3, 0x52, 0x52, 0x8b, 0xa0,
+	0xda, 0xa0, 0x3c, 0x21, 0x11, 0x2e, 0xd6, 0xb2, 0xc4, 0x9c, 0xd2, 0x54, 0x09, 0x26, 0xb0, 0x30,
+	0x84, 0x63, 0x34, 0x97, 0x91, 0x8b, 0xc5, 0x39, 0x23, 0xb1, 0x44, 0xc8, 0x88, 0x8b, 0x15, 0xec,
+	0x22, 0x21, 0x21, 0x3d, 0xb0, 0xcf, 0x90, 0xbd, 0x22, 0x25, 0x8c, 0x22, 0x06, 0xb5, 0x93, 0x41,
+	0xc8, 0x94, 0x8b, 0x0d, 0xe2, 0x0e, 0x21, 0x84, 0x02, 0x84, 0x17, 0xa4, 0x44, 0x50, 0x05, 0xe1,
+	0xda, 0xb4, 0xb8, 0x58, 0xbc, 0xf2, 0x33, 0xf3, 0x84, 0x78, 0x21, 0xf2, 0x50, 0x87, 0x4b, 0xa1,
+	0x72, 0x95, 0x18, 0x34, 0x18, 0x0d, 0x18, 0x9d, 0x78, 0x4e, 0x3c, 0x92, 0x63, 0xbc, 0xf0, 0x48,
+	0x8e, 0xf1, 0xc1, 0x23, 0x39, 0xc6, 0x24, 0x36, 0x70, 0x78, 0x1b, 0x03, 0x02, 0x00, 0x00, 0xff,
+	0xff, 0x10, 0xf3, 0x90, 0x01, 0x7d, 0x01, 0x00, 0x00,
 }
