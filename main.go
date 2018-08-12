@@ -52,9 +52,10 @@ func main() {
 
 	app.Command("client", "Run server client", func(cmd *cli.Cmd) {
 		serverAddress := app.String(cli.StringOpt{
-			Name:  "serverAddress",
-			Value: "localhost:8090",
-			Desc:  "Address of the chat server",
+			Name:   "serverAddress",
+			Value:  "localhost:8090",
+			Desc:   "Address of the chat server",
+			EnvVar: "SERVER_ADDRESS",
 		})
 
 		cmd.Action = func() {
