@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"crypto/tls"
 	"fmt"
 	"log"
 	"os"
@@ -10,6 +11,8 @@ import (
 	"syscall"
 
 	"github.com/danielcopaciu/chat/client"
+	"golang.org/x/crypto/acme/autocert"
+	"google.golang.org/grpc/credentials"
 
 	"github.com/danielcopaciu/chat/server"
 
@@ -38,12 +41,31 @@ func main() {
 			Desc:   "GRPC address",
 			EnvVar: "ADDRESS",
 		})
+		certDir := app.String(cli.StringOpt{
+			Name:   "cert-dir",
+			Value:  "tls",
+			Desc:   "Directory to cache acme certs",
+			EnvVar: "CERT_DIR",
+		})
+		domain := app.String(cli.StringOpt{
+			Name:   "domain",
+			Value:  "chat.dragffy.ro",
+			Desc:   "Domain name to register cert with",
+			EnvVar: "DOMAIN",
+		})
 
 		cmd.Action = func() {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			if err := runServer(ctx, *address); err != nil {
+			m := &autocert.Manager{
+				Cache:      autocert.DirCache(*certDir),
+				Prompt:     autocert.AcceptTOS,
+				HostPolicy: autocert.HostWhitelist(*domain),
+			}
+			creds := credentials.NewTLS(&tls.Config{GetCertificate: m.GetCertificate})
+
+			if err := runServer(ctx, *address, creds); err != nil {
 				cancel()
 				log.Fatal(err)
 			}
@@ -73,13 +95,13 @@ func main() {
 	}
 }
 
-func runServer(ctx context.Context, address string) error {
+func runServer(ctx context.Context, address string, creds credentials.TransportCredentials) error {
+
 	chatServer, err := server.NewServer()
 	if err != nil {
 		return err
 	}
-
-	serverStop, err := startGRPCServer(address, chatServer)
+	serverStop, err := startGRPCServer(address, creds, chatServer)
 	if err != nil {
 		return err
 	}
