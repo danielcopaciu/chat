@@ -32,7 +32,4 @@ workflows:
               ignore: master
   deployment:
     jobs:
-      - deploy:
-          filters:
-            branches:
-              only: master
+      - deploy
