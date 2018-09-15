@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
@@ -20,6 +21,7 @@ import (
 
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -28,12 +30,13 @@ var hash = sha256.New()
 type Client struct {
 	username        string
 	serverAddress   string
+	insecure        bool
 	chatClient      chat.ChatClient
 	privateKey      *rsa.PrivateKey
 	publicServerKey *rsa.PublicKey
 }
 
-func NewClient(username, serverAddress string) (*Client, error) {
+func NewClient(username, serverAddress string, insecure bool) (*Client, error) {
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return nil, errors.WithMessage(err, "failed to generate key")
@@ -42,6 +45,7 @@ func NewClient(username, serverAddress string) (*Client, error) {
 	return &Client{
 		username:      username,
 		serverAddress: serverAddress,
+		insecure:      insecure,
 		privateKey:    privateKey,
 	}, nil
 }
@@ -89,7 +93,17 @@ func (c *Client) Run(ctx context.Context) error {
 	connCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
-	conn, err := grpc.DialContext(connCtx, c.serverAddress, grpc.WithInsecure(), grpc.WithBlock())
+	var creds grpc.DialOption
+	if c.insecure {
+		creds = grpc.WithInsecure()
+	} else {
+		creds = grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{}))
+	}
+	conn, err := grpc.DialContext(connCtx, c.serverAddress,
+		creds,
+		grpc.WithWaitForHandshake(),
+		grpc.WithBlock(),
+	)
 	if err != nil {
 		return errors.WithMessage(err, "unable to connect")
 	}
