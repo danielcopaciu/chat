@@ -3,11 +3,18 @@ package client
 import (
 	"bufio"
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha256"
+	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"log"
 	"os"
 	"time"
+
+	"github.com/gogo/protobuf/proto"
 
 	"github.com/danielcopaciu/chat/generated/chat"
 
@@ -16,38 +23,78 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+var hash = sha256.New()
+
 type Client struct {
-	username      string
-	serverAddress string
-	chatClient    chat.ChatClient
+	username        string
+	serverAddress   string
+	chatClient      chat.ChatClient
+	privateKey      *rsa.PrivateKey
+	publicServerKey *rsa.PublicKey
 }
 
-func NewClient(username, serverAddress string) *Client {
+func NewClient(username, serverAddress string) (*Client, error) {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return nil, errors.WithMessage(err, "failed to generate key")
+	}
+
 	return &Client{
 		username:      username,
 		serverAddress: serverAddress,
-	}
+		privateKey:    privateKey,
+	}, nil
 }
 
 func (c *Client) Login(ctx context.Context) error {
 	loginCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
-	_, err := c.chatClient.Login(loginCtx, &chat.LoginRequest{Username: c.username})
-	return err
+	fmt.Printf("%T", c.privateKey.PublicKey)
+	publicKey, err := x509.MarshalPKIXPublicKey(&c.privateKey.PublicKey)
+	if err != nil {
+		return errors.WithMessage(err, "failed to generate client key")
+	}
+
+	pubBytes := pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PUBLIC KEY",
+		Bytes: publicKey,
+	})
+
+	loginResponse, err := c.chatClient.Login(loginCtx, &chat.LoginRequest{Username: c.username, ClientKey: pubBytes})
+	if err != nil {
+		return err
+	}
+
+	block, _ := pem.Decode(loginResponse.ServerKey)
+	if block == nil {
+		return errors.New("invalid key received from server")
+	}
+
+	pubKey, err := x509.ParsePKIXPublicKey(block.Bytes)
+	if err != nil {
+		return errors.New("invalid key received from server")
+	}
+
+	switch pubKey.(type) {
+	case *rsa.PublicKey:
+		c.publicServerKey = pubKey.(*rsa.PublicKey)
+	default:
+		return errors.New("server key has an invalid type")
+	}
+	return nil
 }
 
 func (c *Client) Run(ctx context.Context) error {
 	connCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
-	log.Printf("Connection to server on %s\n", c.serverAddress)
-
 	conn, err := grpc.DialContext(connCtx, c.serverAddress, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
 		return errors.WithMessage(err, "unable to connect")
 	}
 	defer conn.Close()
+	log.Printf("Succesfully connected to server on %s\n", c.serverAddress)
 
 	c.chatClient = chat.NewChatClient(conn)
 	if err := c.Login(ctx); err != nil {
@@ -96,31 +143,49 @@ func (c *Client) Logout() error {
 	return err
 }
 
+func (c *Client) getEnvelope(msg chat.Message) (*chat.Envelope, error) {
+	data, err := proto.Marshal(&msg)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to send message")
+	}
+
+	encrypted, err := rsa.EncryptOAEP(hash, rand.Reader, c.publicServerKey, data, nil)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to send message")
+	}
+
+	return &chat.Envelope{Message: encrypted}, nil
+}
+
 func (c *Client) send(stream chat.Chat_JoinClient) error {
 	scanner := bufio.NewScanner(os.Stdin)
-
 	for scanner.Scan() {
 		value := scanner.Text()
 		switch value {
 		case "/logout":
 			return c.Logout()
 		default:
-			message := &chat.Message{
+			message := chat.Message{
 				Sender: c.username,
 				Value:  scanner.Text(),
 			}
+			env, err := c.getEnvelope(message)
+			if err != nil {
+				return err
+			}
 
-			if err := stream.Send(message); err != nil {
+			if err := stream.Send(env); err != nil {
 				return err
 			}
 		}
 	}
-	return nil
+
+	return scanner.Err()
 }
 
 func (c *Client) receive(stream chat.Chat_JoinClient) error {
 	for {
-		res, err := stream.Recv()
+		env, err := stream.Recv()
 		if err != nil {
 			if err == io.EOF {
 				return nil
@@ -128,10 +193,21 @@ func (c *Client) receive(stream chat.Chat_JoinClient) error {
 			return err
 		}
 
-		if res.Sender != "" {
-			fmt.Printf("%s: %s\n", res.Sender, res.Value)
+		decrypted, err := rsa.DecryptOAEP(hash, rand.Reader, c.privateKey, env.Message, nil)
+		if err != nil {
+			return errors.WithMessage(err, "failed to read message")
+		}
+
+		var msg chat.Message
+		err = proto.Unmarshal(decrypted, &msg)
+		if err != nil {
+			return errors.WithMessage(err, "failed to read message")
+		}
+
+		if msg.Sender != "" {
+			fmt.Printf("%s: %s\n", msg.Sender, msg.Value)
 		} else {
-			fmt.Printf("%s\n", res.Value)
+			fmt.Printf("%s\n", msg.Value)
 		}
 	}
 }
