@@ -3,13 +3,17 @@ package main
 import (
 	"bufio"
 	"context"
+	"crypto/tls"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/danielcopaciu/chat/client"
+	"golang.org/x/crypto/acme/autocert"
+	"google.golang.org/grpc/credentials"
 
 	"github.com/danielcopaciu/chat/server"
 
@@ -38,12 +42,43 @@ func main() {
 			Desc:   "GRPC address",
 			EnvVar: "ADDRESS",
 		})
+		insecure := app.Bool(cli.BoolOpt{
+			Name:   "insecure",
+			Value:  true,
+			Desc:   "Flag to run server without tls",
+			EnvVar: "INSECURE",
+		})
+		certDir := app.String(cli.StringOpt{
+			Name:   "cert-dir",
+			Value:  "tls",
+			Desc:   "Directory to cache acme certs (effective if insecure is false)",
+			EnvVar: "CERT_DIR",
+		})
+		domain := app.String(cli.StringOpt{
+			Name:   "domain",
+			Value:  "chat.dragffy.ro",
+			Desc:   "Domain name to register cert with (effective if insecure is false)",
+			EnvVar: "DOMAIN",
+		})
 
 		cmd.Action = func() {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			if err := runServer(ctx, *address); err != nil {
+			var creds credentials.TransportCredentials
+			if !*insecure {
+				m := &autocert.Manager{
+					Cache:      autocert.DirCache(*certDir),
+					Prompt:     autocert.AcceptTOS,
+					HostPolicy: autocert.HostWhitelist(*domain),
+				}
+				go func() {
+					log.Println("autocert manager server terminated. err:", http.ListenAndServe(":http", m.HTTPHandler(nil)))
+				}()
+				creds = credentials.NewTLS(&tls.Config{GetCertificate: m.GetCertificate})
+			}
+
+			if err := runServer(ctx, *address, creds); err != nil {
 				cancel()
 				log.Fatal(err)
 			}
@@ -57,12 +92,18 @@ func main() {
 			Desc:   "Address of the chat server",
 			EnvVar: "SERVER_ADDRESS",
 		})
+		insecure := app.Bool(cli.BoolOpt{
+			Name:   "insecure",
+			Value:  true,
+			Desc:   "Flag to establish non-secure conn",
+			EnvVar: "INSECURE",
+		})
 
 		cmd.Action = func() {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
 
-			if err := runClient(ctx, *serverAddress); err != nil {
+			if err := runClient(ctx, *serverAddress, *insecure); err != nil {
 				log.Fatal(err)
 			}
 		}
@@ -73,13 +114,13 @@ func main() {
 	}
 }
 
-func runServer(ctx context.Context, address string) error {
+func runServer(ctx context.Context, address string, creds credentials.TransportCredentials) error {
+
 	chatServer, err := server.NewServer()
 	if err != nil {
 		return err
 	}
-
-	serverStop, err := startGRPCServer(address, chatServer)
+	serverStop, err := startGRPCServer(address, creds, chatServer)
 	if err != nil {
 		return err
 	}
@@ -103,14 +144,14 @@ func runServer(ctx context.Context, address string) error {
 	return nil
 }
 
-func runClient(ctx context.Context, serverAddress string) error {
+func runClient(ctx context.Context, serverAddress string, insecure bool) error {
 	fmt.Print("Username: ")
 
 	scanner := bufio.NewScanner(os.Stdin)
 	scanner.Scan()
 
 	username := scanner.Text()
-	client, err := client.NewClient(username, serverAddress)
+	client, err := client.NewClient(username, serverAddress, insecure)
 	if err != nil {
 		return err
 	}
