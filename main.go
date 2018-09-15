@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -71,6 +72,9 @@ func main() {
 					Prompt:     autocert.AcceptTOS,
 					HostPolicy: autocert.HostWhitelist(*domain),
 				}
+				go func() {
+					log.Println("autocert manager server terminated. err:", http.ListenAndServe(":http", m.HTTPHandler(nil)))
+				}()
 				creds = credentials.NewTLS(&tls.Config{GetCertificate: m.GetCertificate})
 			}
 
