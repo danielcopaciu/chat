@@ -13,6 +13,7 @@
 		LogoutRequest
 		LogoutResponse
 		Message
+		Envelope
 */
 package chat
 
@@ -39,7 +40,8 @@ var _ = math.Inf
 const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
 
 type LoginRequest struct {
-	Username string `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
+	Username  string `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
+	ClientKey []byte `protobuf:"bytes,2,opt,name=client_key,json=clientKey,proto3" json:"client_key,omitempty"`
 }
 
 func (m *LoginRequest) Reset()                    { *m = LoginRequest{} }
@@ -54,13 +56,28 @@ func (m *LoginRequest) GetUsername() string {
 	return ""
 }
 
+func (m *LoginRequest) GetClientKey() []byte {
+	if m != nil {
+		return m.ClientKey
+	}
+	return nil
+}
+
 type LoginResponse struct {
+	ServerKey []byte `protobuf:"bytes,1,opt,name=server_key,json=serverKey,proto3" json:"server_key,omitempty"`
 }
 
 func (m *LoginResponse) Reset()                    { *m = LoginResponse{} }
 func (m *LoginResponse) String() string            { return proto.CompactTextString(m) }
 func (*LoginResponse) ProtoMessage()               {}
 func (*LoginResponse) Descriptor() ([]byte, []int) { return fileDescriptorChat, []int{1} }
+
+func (m *LoginResponse) GetServerKey() []byte {
+	if m != nil {
+		return m.ServerKey
+	}
+	return nil
+}
 
 type LogoutRequest struct {
 	Username string `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
@@ -110,12 +127,29 @@ func (m *Message) GetValue() string {
 	return ""
 }
 
+type Envelope struct {
+	Message []byte `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
+}
+
+func (m *Envelope) Reset()                    { *m = Envelope{} }
+func (m *Envelope) String() string            { return proto.CompactTextString(m) }
+func (*Envelope) ProtoMessage()               {}
+func (*Envelope) Descriptor() ([]byte, []int) { return fileDescriptorChat, []int{5} }
+
+func (m *Envelope) GetMessage() []byte {
+	if m != nil {
+		return m.Message
+	}
+	return nil
+}
+
 func init() {
 	proto.RegisterType((*LoginRequest)(nil), "chat.LoginRequest")
 	proto.RegisterType((*LoginResponse)(nil), "chat.LoginResponse")
 	proto.RegisterType((*LogoutRequest)(nil), "chat.LogoutRequest")
 	proto.RegisterType((*LogoutResponse)(nil), "chat.LogoutResponse")
 	proto.RegisterType((*Message)(nil), "chat.Message")
+	proto.RegisterType((*Envelope)(nil), "chat.Envelope")
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -170,8 +204,8 @@ func (c *chatClient) Join(ctx context.Context, opts ...grpc.CallOption) (Chat_Jo
 }
 
 type Chat_JoinClient interface {
-	Send(*Message) error
-	Recv() (*Message, error)
+	Send(*Envelope) error
+	Recv() (*Envelope, error)
 	grpc.ClientStream
 }
 
@@ -179,12 +213,12 @@ type chatJoinClient struct {
 	grpc.ClientStream
 }
 
-func (x *chatJoinClient) Send(m *Message) error {
+func (x *chatJoinClient) Send(m *Envelope) error {
 	return x.ClientStream.SendMsg(m)
 }
 
-func (x *chatJoinClient) Recv() (*Message, error) {
-	m := new(Message)
+func (x *chatJoinClient) Recv() (*Envelope, error) {
+	m := new(Envelope)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -244,8 +278,8 @@ func _Chat_Join_Handler(srv interface{}, stream grpc.ServerStream) error {
 }
 
 type Chat_JoinServer interface {
-	Send(*Message) error
-	Recv() (*Message, error)
+	Send(*Envelope) error
+	Recv() (*Envelope, error)
 	grpc.ServerStream
 }
 
@@ -253,12 +287,12 @@ type chatJoinServer struct {
 	grpc.ServerStream
 }
 
-func (x *chatJoinServer) Send(m *Message) error {
+func (x *chatJoinServer) Send(m *Envelope) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-func (x *chatJoinServer) Recv() (*Message, error) {
-	m := new(Message)
+func (x *chatJoinServer) Recv() (*Envelope, error) {
+	m := new(Envelope)
 	if err := x.ServerStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
@@ -310,6 +344,12 @@ func (m *LoginRequest) MarshalTo(dAtA []byte) (int, error) {
 		i = encodeVarintChat(dAtA, i, uint64(len(m.Username)))
 		i += copy(dAtA[i:], m.Username)
 	}
+	if len(m.ClientKey) > 0 {
+		dAtA[i] = 0x12
+		i++
+		i = encodeVarintChat(dAtA, i, uint64(len(m.ClientKey)))
+		i += copy(dAtA[i:], m.ClientKey)
+	}
 	return i, nil
 }
 
@@ -328,6 +368,12 @@ func (m *LoginResponse) MarshalTo(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if len(m.ServerKey) > 0 {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintChat(dAtA, i, uint64(len(m.ServerKey)))
+		i += copy(dAtA[i:], m.ServerKey)
+	}
 	return i, nil
 }
 
@@ -403,6 +449,30 @@ func (m *Message) MarshalTo(dAtA []byte) (int, error) {
 	return i, nil
 }
 
+func (m *Envelope) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *Envelope) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if len(m.Message) > 0 {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintChat(dAtA, i, uint64(len(m.Message)))
+		i += copy(dAtA[i:], m.Message)
+	}
+	return i, nil
+}
+
 func encodeVarintChat(dAtA []byte, offset int, v uint64) int {
 	for v >= 1<<7 {
 		dAtA[offset] = uint8(v&0x7f | 0x80)
@@ -419,12 +489,20 @@ func (m *LoginRequest) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovChat(uint64(l))
 	}
+	l = len(m.ClientKey)
+	if l > 0 {
+		n += 1 + l + sovChat(uint64(l))
+	}
 	return n
 }
 
 func (m *LoginResponse) Size() (n int) {
 	var l int
 	_ = l
+	l = len(m.ServerKey)
+	if l > 0 {
+		n += 1 + l + sovChat(uint64(l))
+	}
 	return n
 }
 
@@ -452,6 +530,16 @@ func (m *Message) Size() (n int) {
 		n += 1 + l + sovChat(uint64(l))
 	}
 	l = len(m.Value)
+	if l > 0 {
+		n += 1 + l + sovChat(uint64(l))
+	}
+	return n
+}
+
+func (m *Envelope) Size() (n int) {
+	var l int
+	_ = l
+	l = len(m.Message)
 	if l > 0 {
 		n += 1 + l + sovChat(uint64(l))
 	}
@@ -529,6 +617,37 @@ func (m *LoginRequest) Unmarshal(dAtA []byte) error {
 			}
 			m.Username = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ClientKey", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowChat
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthChat
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ClientKey = append(m.ClientKey[:0], dAtA[iNdEx:postIndex]...)
+			if m.ClientKey == nil {
+				m.ClientKey = []byte{}
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipChat(dAtA[iNdEx:])
@@ -579,6 +698,37 @@ func (m *LoginResponse) Unmarshal(dAtA []byte) error {
 			return fmt.Errorf("proto: LoginResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ServerKey", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowChat
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthChat
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ServerKey = append(m.ServerKey[:0], dAtA[iNdEx:postIndex]...)
+			if m.ServerKey == nil {
+				m.ServerKey = []byte{}
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipChat(dAtA[iNdEx:])
@@ -837,6 +987,87 @@ func (m *Message) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
+func (m *Envelope) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowChat
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: Envelope: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: Envelope: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Message", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowChat
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthChat
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Message = append(m.Message[:0], dAtA[iNdEx:postIndex]...)
+			if m.Message == nil {
+				m.Message = []byte{}
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipChat(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthChat
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
 func skipChat(dAtA []byte) (n int, err error) {
 	l := len(dAtA)
 	iNdEx := 0
@@ -945,20 +1176,24 @@ var (
 func init() { proto.RegisterFile("chat.proto", fileDescriptorChat) }
 
 var fileDescriptorChat = []byte{
-	// 233 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0x4a, 0xce, 0x48, 0x2c,
-	0xd1, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x01, 0xb1, 0x95, 0xb4, 0xb8, 0x78, 0x7c, 0xf2,
-	0xd3, 0x33, 0xf3, 0x82, 0x52, 0x0b, 0x4b, 0x53, 0x8b, 0x4b, 0x84, 0xa4, 0xb8, 0x38, 0x4a, 0x8b,
-	0x53, 0x8b, 0xf2, 0x12, 0x73, 0x53, 0x25, 0x18, 0x15, 0x18, 0x35, 0x38, 0x83, 0xe0, 0x7c, 0x25,
-	0x7e, 0x2e, 0x5e, 0xa8, 0xda, 0xe2, 0x82, 0xfc, 0xbc, 0xe2, 0x54, 0x25, 0x6d, 0xb0, 0x40, 0x7e,
-	0x69, 0x09, 0x31, 0xba, 0x05, 0xb8, 0xf8, 0x60, 0x8a, 0xa1, 0xda, 0xcd, 0xb9, 0xd8, 0x7d, 0x53,
-	0x8b, 0x8b, 0x13, 0xd3, 0x53, 0x85, 0xc4, 0xb8, 0xd8, 0x8a, 0x53, 0xf3, 0x52, 0x52, 0x8b, 0xa0,
-	0xda, 0xa0, 0x3c, 0x21, 0x11, 0x2e, 0xd6, 0xb2, 0xc4, 0x9c, 0xd2, 0x54, 0x09, 0x26, 0xb0, 0x30,
-	0x84, 0x63, 0x34, 0x97, 0x91, 0x8b, 0xc5, 0x39, 0x23, 0xb1, 0x44, 0xc8, 0x88, 0x8b, 0x15, 0xec,
-	0x22, 0x21, 0x21, 0x3d, 0xb0, 0xcf, 0x90, 0xbd, 0x22, 0x25, 0x8c, 0x22, 0x06, 0xb5, 0x93, 0x41,
-	0xc8, 0x94, 0x8b, 0x0d, 0xe2, 0x0e, 0x21, 0x84, 0x02, 0x84, 0x17, 0xa4, 0x44, 0x50, 0x05, 0xe1,
-	0xda, 0xb4, 0xb8, 0x58, 0xbc, 0xf2, 0x33, 0xf3, 0x84, 0x78, 0x21, 0xf2, 0x50, 0x87, 0x4b, 0xa1,
-	0x72, 0x95, 0x18, 0x34, 0x18, 0x0d, 0x18, 0x9d, 0x78, 0x4e, 0x3c, 0x92, 0x63, 0xbc, 0xf0, 0x48,
-	0x8e, 0xf1, 0xc1, 0x23, 0x39, 0xc6, 0x24, 0x36, 0x70, 0x78, 0x1b, 0x03, 0x02, 0x00, 0x00, 0xff,
-	0xff, 0x10, 0xf3, 0x90, 0x01, 0x7d, 0x01, 0x00, 0x00,
+	// 295 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x91, 0xcf, 0x4a, 0xc3, 0x40,
+	0x10, 0xc6, 0xbb, 0xd2, 0x7f, 0x19, 0x62, 0x91, 0xb1, 0x48, 0x08, 0x18, 0xca, 0xe2, 0x21, 0xa0,
+	0x04, 0xa9, 0x88, 0x77, 0xc5, 0x83, 0xff, 0x2e, 0x79, 0x01, 0x89, 0x75, 0x68, 0x83, 0xe9, 0x6e,
+	0xcc, 0x6e, 0x02, 0x7d, 0x1a, 0x5f, 0xc7, 0xa3, 0x8f, 0x20, 0x79, 0x12, 0xe9, 0x6e, 0xd2, 0x5a,
+	0x4f, 0xde, 0xf6, 0xfb, 0xf6, 0x37, 0xb3, 0xdf, 0xcc, 0x02, 0xcc, 0x16, 0x89, 0x8e, 0xf2, 0x42,
+	0x6a, 0x89, 0xdd, 0xf5, 0x99, 0xdf, 0x81, 0xfb, 0x28, 0xe7, 0xa9, 0x88, 0xe9, 0xbd, 0x24, 0xa5,
+	0xd1, 0x87, 0x61, 0xa9, 0xa8, 0x10, 0xc9, 0x92, 0x3c, 0x36, 0x61, 0xa1, 0x13, 0x6f, 0x34, 0x1e,
+	0x03, 0xcc, 0xb2, 0x94, 0x84, 0x7e, 0x7e, 0xa3, 0x95, 0xb7, 0x37, 0x61, 0xa1, 0x1b, 0x3b, 0xd6,
+	0x79, 0xa0, 0x15, 0x8f, 0x60, 0xbf, 0x69, 0xa5, 0x72, 0x29, 0x94, 0xe1, 0x15, 0x15, 0x15, 0x15,
+	0x86, 0x67, 0x96, 0xb7, 0xce, 0x9a, 0x3f, 0x35, 0xbc, 0x2c, 0xf5, 0x3f, 0xde, 0xe6, 0x07, 0x30,
+	0x6a, 0x61, 0xdb, 0x9d, 0x5f, 0xc1, 0xe0, 0x89, 0x94, 0x4a, 0xe6, 0x84, 0x47, 0xd0, 0x57, 0x24,
+	0x5e, 0xa9, 0x68, 0xca, 0x1a, 0x85, 0x63, 0xe8, 0x55, 0x49, 0x56, 0x92, 0xc9, 0xea, 0xc4, 0x56,
+	0xf0, 0x13, 0x18, 0xde, 0x8a, 0x8a, 0x32, 0x99, 0x13, 0x7a, 0x30, 0x58, 0xda, 0x26, 0x4d, 0xbe,
+	0x56, 0x4e, 0x3f, 0x18, 0x74, 0x6f, 0x16, 0x89, 0xc6, 0x29, 0xf4, 0xcc, 0x58, 0x88, 0x91, 0xd9,
+	0xde, 0xef, 0x75, 0xf9, 0x87, 0x3b, 0x5e, 0x93, 0xac, 0x83, 0x97, 0xd0, 0xb7, 0x69, 0x71, 0x0b,
+	0x6c, 0x07, 0xf5, 0xc7, 0xbb, 0xe6, 0xa6, 0xec, 0x0c, 0xba, 0xf7, 0x32, 0x15, 0x38, 0xb2, 0xf7,
+	0x6d, 0x4a, 0xff, 0x8f, 0xe6, 0x9d, 0x90, 0x9d, 0xb3, 0x6b, 0xf7, 0xb3, 0x0e, 0xd8, 0x57, 0x1d,
+	0xb0, 0xef, 0x3a, 0x60, 0x2f, 0x7d, 0xf3, 0xab, 0x17, 0x3f, 0x01, 0x00, 0x00, 0xff, 0xff, 0xf4,
+	0x0a, 0xb1, 0xfa, 0xe3, 0x01, 0x00, 0x00,
 }

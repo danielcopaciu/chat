@@ -74,7 +74,11 @@ func main() {
 }
 
 func runServer(ctx context.Context, address string) error {
-	chatServer := server.NewServer()
+	chatServer, err := server.NewServer()
+	if err != nil {
+		return err
+	}
+
 	serverStop, err := startGRPCServer(address, chatServer)
 	if err != nil {
 		return err
@@ -106,7 +110,10 @@ func runClient(ctx context.Context, serverAddress string) error {
 	scanner.Scan()
 
 	username := scanner.Text()
-	client := client.NewClient(username, serverAddress)
+	client, err := client.NewClient(username, serverAddress)
+	if err != nil {
+		return err
+	}
 
 	clientCtx, cancel := context.WithCancel(context.Background())
 	errs := make(chan error)
