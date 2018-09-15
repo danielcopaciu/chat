@@ -52,6 +52,7 @@ clean:
 	rm -f $(SERVICE)
 
 # builds our binary
+.PHONY: $(SERVICE)
 $(SERVICE):
 	$(BUILDENV) go build -o $(SERVICE)  -ldflags '$(LINKFLAGS)'
 
